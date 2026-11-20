@@ -2,3 +2,4 @@
 *.jar
 .vscode/
 .idea/
+backend/datos_evento.json
