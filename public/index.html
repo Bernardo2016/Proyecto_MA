@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventGo | Plataforma Integral de Taquilla y Gestión de Eventos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Barra Lateral de Navegación -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">EG</div>
+                <div>
+                    <h1>EventGo</h1>
+                    <span>Ticketing & Access OS</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="taquilla">
+                    <span class="nav-dot"></span> Taquilla y Mapa 2D
+                </button>
+                <button class="nav-item" data-tab="caja" data-role="ORGANIZADOR,TAQUILLA">
+                    <span class="nav-dot"></span> Caja y Check-In Grupal
+                </button>
+                <button class="nav-item" data-tab="eventos" data-role="ORGANIZADOR">
+                    <span class="nav-dot"></span> Cartelera y Eventos
+                </button>
+                <button class="nav-item" data-tab="crud" data-role="ORGANIZADOR,TAQUILLA">
+                    <span class="nav-dot"></span> Base de Datos (CRUD)
+                </button>
+                <button class="nav-item" data-tab="dashboard" data-role="ORGANIZADOR">
+                    <span class="nav-dot"></span> Dashboard Analítico
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="session-card">
+                    <small>Sesión Activa (Cambio de Rol)</small>
+                    <select id="selectRolActivo" class="role-select"></select>
+                    <span id="badgeRolPermisos" class="role-badge">Permisos Totales</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Área Principal -->
+        <main class="main-content">
+            <!-- Barra Superior -->
+            <header class="topbar">
+                <div class="event-switcher">
+                    <label for="selectEventoActivo">Evento en Operación:</label>
+                    <select id="selectEventoActivo" class="event-select"></select>
+                </div>
+
+                <div class="topbar-status">
+                    <div id="timerBox" class="timer-pill hidden">
+                        <span>Tiempo de reserva:</span>
+                        <strong id="timerSeconds">60s</strong>
+                    </div>
+                    <div class="venue-pill" id="headerVenueInfo">Cargando recinto...</div>
+                </div>
+            </header>
+
+            <!-- Notificaciones Toast -->
+            <div id="toastContainer" class="toast-container"></div>
+
+            <!-- VISTA 1: TAQUILLA Y MAPA DE ASIENTOS -->
+            <section id="tab-taquilla" class="tab-panel active">
+                <div class="taquilla-grid">
+                    <!-- Panel Izquierdo: Escenario y Cuadrícula -->
+                    <div class="card stage-card">
+                        <div class="card-header">
+                            <div>
+                                <h2 id="tituloMapaEvento">Mapa Interactivo de Aforo</h2>
+                                <p id="subtituloMapaEvento" class="muted">Selecciona entre 1 y 4 asientos según la categoría elegida.</p>
+                            </div>
+                            <div class="legend">
+                                <span class="legend-item"><i class="box vip"></i> VIP (Primeras filas)</span>
+                                <span class="legend-item"><i class="box free"></i> General Libre</span>
+                                <span class="legend-item"><i class="box selected"></i> Seleccionado</span>
+                                <span class="legend-item"><i class="box occupied"></i> Ocupado</span>
+                            </div>
+                        </div>
+
+                        <div class="stage-banner">ESCENARIO PRINCIPAL</div>
+                        <div id="seatGridContainer" class="seat-grid-wrapper"></div>
+                    </div>
+
+                    <!-- Panel Derecho: Formulario de Compra Grupal -->
+                    <div class="card checkout-card">
+                        <div class="card-header">
+                            <h3>Registro de Compra Grupal</h3>
+                            <span class="badge-info">Máx. 4 boletos</span>
+                        </div>
+
+                        <form id="formVenta" class="form-stack">
+                            <div class="form-group">
+                                <label>Categoría de Boleto</label>
+                                <div class="category-toggle">
+                                    <button type="button" class="cat-btn active" data-cat="VIP" id="btnCatVIP">
+                                        VIP <small id="lblPrecioVIP">$1,500</small>
+                                    </button>
+                                    <button type="button" class="cat-btn" data-cat="GENERAL" id="btnCatGEN">
+                                        General <small id="lblPrecioGEN">$500</small>
+                                    </button>
+                                </div>
+                                <small id="reglaVipHint" class="hint-text">Cláusula VIP: Solo habilita las primeras filas frente al escenario.</small>
+                            </div>
+
+                            <div class="selected-summary">
+                                <span>Asientos elegidos (<strong id="countSeleccionados">0</strong>/4):</span>
+                                <div id="chipsAsientos" class="chips-row">
+                                    <span class="muted">Haz clic en el mapa</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ventaNombre">Nombre del Titular del Grupo</label>
+                                <input type="text" id="ventaNombre" placeholder="Ej. Carlos Mendoza" required>
+                            </div>
+
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label for="ventaEdad">Edad</label>
+                                    <input type="number" id="ventaEdad" min="12" max="110" value="22" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="ventaTelefono">Teléfono</label>
+                                    <input type="text" id="ventaTelefono" placeholder="55-1234-5678">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ventaCorreo">Correo Electrónico (Sincroniza con BD Clientes)</label>
+                                <input type="email" id="ventaCorreo" placeholder="titular@correo.com" required>
+                            </div>
+
+                            <div class="total-box">
+                                <span>Total a Pagar:</span>
+                                <strong id="totalVentaTexto">$0.00</strong>
+                            </div>
+
+                            <div class="btn-row">
+                                <button type="button" id="btnLimpiarSeleccion" class="btn btn-secondary">Limpiar</button>
+                                <button type="submit" class="btn btn-primary">Confirmar Reserva</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA 2: CAJA Y CHECK-IN GRUPAL -->
+            <section id="tab-caja" class="tab-panel">
+                <div class="two-col-grid">
+                    <!-- Módulo de Cobro -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Caja y Liquidación de Folios</h3>
+                            <span class="badge-warning">Cobro Grupal</span>
+                        </div>
+                        <form id="formPago" class="form-stack">
+                            <div class="form-group">
+                                <label for="pagoReferencia">Folio de Grupo (GRP-X) o ID de Boleto</label>
+                                <input type="text" id="pagoReferencia" placeholder="Ej. GRP-2" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pagoMonto">Monto Recibido en Efectivo ($)</label>
+                                <input type="number" id="pagoMonto" step="0.01" min="1" placeholder="Ej. 1500.00" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Procesar Pago y Calcular Cambio</button>
+                        </form>
+                        <div id="resultadoCaja" class="alert-box hidden"></div>
+                    </div>
+
+                    <!-- Módulo de Check-In Grupal -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Control de Acceso (Check-In Grupal)</h3>
+                            <span class="badge-info">Conteo Simultáneo</span>
+                        </div>
+                        <p class="muted mb-1">Ingresa el folio grupal o número de boleto para validar el pago y registrar el ingreso simultáneo de todos los asistentes asociados.</p>
+                        <form id="formCheckIn" class="form-stack">
+                            <div class="form-group">
+                                <label for="checkinReferencia">Folio Grupal o ID de Boleto</label>
+                                <input type="text" id="checkinReferencia" placeholder="Ej. GRP-1" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Validar y Registrar Entrada Grupal</button>
+                        </form>
+                        <div id="resultadoCheckIn" class="alert-box hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Tabla Rápida de Grupos Activos en el Evento -->
+                <div class="card mt-1">
+                    <div class="card-header">
+                        <h3>Resumen de Grupos y Estado de Acceso en Evento Actual</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Folio Grupo</th>
+                                    <th>Titular</th>
+                                    <th>Asientos</th>
+                                    <th>Categoría</th>
+                                    <th>Total</th>
+                                    <th>Pago</th>
+                                    <th>Check-In</th>
+                                    <th>Acción Rápida</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaGruposBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA 3: CARTELERA Y CREACIÓN DE EVENTOS -->
+            <section id="tab-eventos" class="tab-panel">
+                <div class="two-col-grid-wide">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Eventos Precargados y Activos</h3>
+                        </div>
+                        <div id="listaEventosCards" class="events-cards-grid"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Crear Nuevo Evento Personalizado</h3>
+                        </div>
+                        <form id="formNuevoEvento" class="form-stack">
+                            <div class="form-group">
+                                <label>Nombre del Evento</label>
+                                <input type="text" id="evNombre" placeholder="Ej. Gala de Ingeniería 2026" required>
+                            </div>
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label>Fecha y Hora</label>
+                                    <input type="text" id="evFecha" value="2026-12-18 19:30" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Categoría</label>
+                                    <select id="evCategoria">
+                                        <option value="Concierto">Concierto</option>
+                                        <option value="Conferencia">Conferencia</option>
+                                        <option value="Teatro">Teatro</option>
+                                        <option value="Deportes">Deportes</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Recinto / Sede</label>
+                                <input type="text" id="evRecinto" placeholder="Ej. Foro Sol / Auditorio" required>
+                            </div>
+                            <div class="form-row-3">
+                                <div class="form-group">
+                                    <label>Total Filas</label>
+                                    <input type="number" id="evFilas" min="2" max="15" value="6" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Columnas</label>
+                                    <input type="number" id="evCols" min="2" max="20" value="8" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Filas VIP</label>
+                                    <input type="number" id="evFilasVIP" min="1" max="10" value="2" required>
+                                </div>
+                            </div>
+                            <div class="form-row-2">
+                                <div class="form-group">
+                                    <label>Costo General ($)</label>
+                                    <input type="number" id="evCostoGen" min="10" value="400" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Costo VIP ($)</label>
+                                    <input type="number" id="evCostoVIP" min="20" value="1200" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Guardar y Publicar Evento</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA 4: BASE DE DATOS CRUD (CLIENTES Y BOLETOS) -->
+            <section id="tab-crud" class="tab-panel">
+                <div class="card mb-1">
+                    <div class="card-header">
+                        <div>
+                            <h3>Base de Datos de Clientes Registrados</h3>
+                            <p class="muted">Persistencia relacional en <code>database_eventgo.json</code> con operaciones CRUD completas.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btnNuevoClienteModal">+ Registrar Cliente</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID Cliente</th>
+                                    <th>Nombre Completo</th>
+                                    <th>Edad</th>
+                                    <th>Correo Electrónico</th>
+                                    <th>Teléfono</th>
+                                    <th>Boletos Adquiridos</th>
+                                    <th>Operaciones CRUD</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaClientesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h3>Registro Detallado de Boletos (Evento Seleccionado)</h3>
+                            <p class="muted">Edición de titular o cancelación con liberación automática de asiento.</p>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Folio</th>
+                                    <th>Grupo</th>
+                                    <th>Asiento</th>
+                                    <th>Zona</th>
+                                    <th>Titular</th>
+                                    <th>Correo</th>
+                                    <th>Precio</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaBoletosBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA 5: DASHBOARD ANALÍTICO -->
+            <section id="tab-dashboard" class="tab-panel">
+                <div id="dashboardContent"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal Reutilizable para Editar Boleto / Crear o Editar Cliente -->
+    <div id="crudModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalTitle">Editar Registro</h3>
+                <button type="button" class="close-modal" id="btnCerrarModal">&times;</button>
+            </div>
+            <form id="modalForm" class="form-stack">
+                <input type="hidden" id="modalMode">
+                <input type="hidden" id="modalRecordId">
+                <div class="form-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="modalNombre" required>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Edad</label>
+                        <input type="number" id="modalEdad" min="12" max="110" required>
+                    </div>
+                    <div class="form-group" id="modalTelGroup">
+                        <label>Teléfono</label>
+                        <input type="text" id="modalTelefono">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="modalCorreo" required>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" id="btnCancelarModal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

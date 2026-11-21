@@ -2,7 +2,7 @@
  * Proyecto: EventGo - Sistema Centralizado de Gestión de Eventos
  * Autores:
  *  - Bernardo Velasco Ortega | Matrícula: AL07127004
- *  - Andrea Lizeth Sanchez Gomez
+ *  - Andrea Lizeth Sanchez Gomez | Matrícula: Al03039306
  * ========================================================================= */
 
 import java.text.SimpleDateFormat;

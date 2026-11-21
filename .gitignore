@@ -1,5 +1,3 @@
-﻿*.class
-*.jar
-.vscode/
-.idea/
+*.class
+backend/database_eventgo.json
 backend/datos_evento.json
