@@ -2,7 +2,7 @@
  * Proyecto: EventGo - Sistema Centralizado de Gestión de Eventos
  * Autores:
  *  - Bernardo Velasco Ortega | Matrícula: AL07127004
- *  - Andrea Lizeth Sanchez Gomez
+ *  - Andrea Lizeth Sanchez Gomez | Matrícula: Al03039306
  * ========================================================================= */
 
 import com.sun.net.httpserver.HttpExchange;
@@ -21,104 +21,101 @@ import java.util.List;
 import java.util.Map;
 
 public class ServidorWeb {
-    private static Evento eventoActual;
+    private static BaseDatos db;
     private static Path directorioPublico;
 
     public static void main(String[] args) throws IOException {
         Path base = Paths.get("").toAbsolutePath();
         if (Files.exists(base.resolve("public"))) {
             directorioPublico = base.resolve("public");
-            eventoActual = new Evento(base.resolve("backend").resolve("datos_evento.json"));
+            db = new BaseDatos(base.resolve("backend").resolve("database_eventgo.json"));
         } else {
             directorioPublico = base.getParent().resolve("public");
-            eventoActual = new Evento(base.resolve("datos_evento.json"));
+            db = new BaseDatos(base.resolve("database_eventgo.json"));
         }
 
         int puerto = 8080;
         HttpServer server = HttpServer.create(new InetSocketAddress(puerto), 0);
 
-        // API REST (CRUD & Lógica de Negocio)
-        server.createContext("/api/estado", exchange -> manejarApi(exchange, () -> eventoActual.obtenerEstadoJson(), true));
+        server.createContext("/api/estado", ex -> manejarApi(ex, () -> db.exportarTodoJson(), true));
 
-        server.createContext("/api/evento", exchange -> manejarApi(exchange, () -> {
-            Map<String, String> data = parsearBody(leerBody(exchange));
-            eventoActual.configurarEvento(
-                data.get("nombreEvento"),
-                data.get("fechaEvento"),
-                data.get("recinto"),
-                Integer.parseInt(data.get("numFilas")),
-                Integer.parseInt(data.get("numColumnas")),
-                Integer.parseInt(data.get("numFilasVIP")),
-                Double.parseDouble(data.get("costoGeneral")),
-                Double.parseDouble(data.get("costoVIP"))
+        server.createContext("/api/evento/crear", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            String msg = db.crearEvento(
+                d.get("nombreEvento"), d.get("fechaEvento"), d.get("recinto"), d.get("categoria"),
+                Integer.parseInt(d.get("numFilas")), Integer.parseInt(d.get("numColumnas")),
+                Integer.parseInt(d.get("numFilasVIP")), Double.parseDouble(d.get("costoGeneral")),
+                Double.parseDouble(d.get("costoVIP"))
             );
-            return jsonMensaje(true, "Evento configurado y guardado exitosamente.");
+            return jsonMensaje(true, msg);
         }, false));
 
-        server.createContext("/api/vender", exchange -> manejarApi(exchange, () -> {
-            Map<String, String> data = parsearBody(leerBody(exchange));
-            String asientosStr = data.getOrDefault("asientos", "");
+        server.createContext("/api/evento/eliminar", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.eliminarEvento(d.get("idEvento")));
+        }, false));
+
+        server.createContext("/api/vender", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
             List<String> listaAsientos = new ArrayList<>();
-            for (String s : asientosStr.split(",")) {
+            for (String s : d.getOrDefault("asientos", "").split(",")) {
                 if (!s.trim().isEmpty()) listaAsientos.add(s.trim());
             }
-            String msg = eventoActual.registrarCompraGrupal(
-                data.get("nombre"),
-                Integer.parseInt(data.get("edad")),
-                data.get("correo"),
-                data.get("tipo"),
-                listaAsientos
+            String msg = db.registrarVenta(
+                d.get("idEvento"), d.get("nombre"), Integer.parseInt(d.get("edad")),
+                d.get("correo"), d.get("telefono"), d.get("tipo"), listaAsientos
             );
             return jsonMensaje(true, msg);
         }, false));
 
-        server.createContext("/api/pagar", exchange -> manejarApi(exchange, () -> {
-            Map<String, String> data = parsearBody(leerBody(exchange));
-            String msg = eventoActual.procesarPago(
-                data.get("referencia"),
-                Double.parseDouble(data.get("monto"))
-            );
-            return jsonMensaje(true, msg);
+        server.createContext("/api/pagar", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.procesarPago(d.get("idEvento"), d.get("referencia"), Double.parseDouble(d.get("monto"))));
         }, false));
 
-        server.createContext("/api/checkin", exchange -> manejarApi(exchange, () -> {
-            Map<String, String> data = parsearBody(leerBody(exchange));
-            String msg = eventoActual.registrarCheckInGrupal(data.get("referencia"));
-            return jsonMensaje(true, msg);
+        server.createContext("/api/checkin", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.registrarCheckIn(d.get("idEvento"), d.get("referencia")));
         }, false));
 
-        server.createContext("/api/boleto/actualizar", exchange -> manejarApi(exchange, () -> {
-            Map<String, String> data = parsearBody(leerBody(exchange));
-            String msg = eventoActual.actualizarBoleto(
-                Integer.parseInt(data.get("idBoleto")),
-                data.get("nombre"),
-                Integer.parseInt(data.get("edad")),
-                data.get("correo")
-            );
-            return jsonMensaje(true, msg);
+        server.createContext("/api/boleto/actualizar", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.actualizarBoleto(
+                d.get("idEvento"), Integer.parseInt(d.get("idBoleto")),
+                d.get("nombre"), Integer.parseInt(d.get("edad")), d.get("correo")
+            ));
         }, false));
 
-        server.createContext("/api/boleto/eliminar", exchange -> manejarApi(exchange, () -> {
-            Map<String, String> data = parsearBody(leerBody(exchange));
-            String msg = eventoActual.eliminarBoleto(Integer.parseInt(data.get("idBoleto")));
-            return jsonMensaje(true, msg);
+        server.createContext("/api/boleto/eliminar", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.eliminarBoleto(d.get("idEvento"), Integer.parseInt(d.get("idBoleto"))));
         }, false));
 
-        // Servir archivos estáticos Web (HTML, CSS, JS, Assets)
+        server.createContext("/api/cliente/guardar", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.guardarClienteManual(
+                d.get("idCliente"), d.get("nombre"), Integer.parseInt(d.get("edad")),
+                d.get("correo"), d.get("telefono")
+            ));
+        }, false));
+
+        server.createContext("/api/cliente/eliminar", ex -> manejarApi(ex, () -> {
+            Map<String, String> d = parsearBody(leerBody(ex));
+            return jsonMensaje(true, db.eliminarCliente(d.get("idCliente")));
+        }, false));
+
         server.createContext("/", ServidorWeb::servirArchivoEstatico);
 
         server.setExecutor(null);
         server.start();
         System.out.println("==========================================================");
-        System.out.println(" Servidor EventGo Web Activo en: http://localhost:" + puerto);
-        System.out.println(" Persistencia JSON: " + directorioPublico.getParent());
+        System.out.println(" EventGo Full-Stack Activo en: http://localhost:" + puerto);
+        System.out.println(" Base de Datos JSON: database_eventgo.json");
         System.out.println("==========================================================");
     }
 
     @FunctionalInterface
-    interface AccionApi {
-        String ejecutar() throws Exception;
-    }
+    interface AccionApi { String ejecutar() throws Exception; }
 
     private static void manejarApi(HttpExchange exchange, AccionApi accion, boolean esGet) throws IOException {
         exchange.getResponseHeaders().add("Content-Type", "application/json; charset=UTF-8");
@@ -131,10 +128,9 @@ public class ServidorWeb {
                 enviarRespuesta(exchange, 405, jsonMensaje(false, "Se requiere POST"));
                 return;
             }
-            String respuesta = accion.ejecutar();
-            enviarRespuesta(exchange, 200, respuesta);
+            enviarRespuesta(exchange, 200, accion.ejecutar());
         } catch (Exception e) {
-            enviarRespuesta(exchange, 400, jsonMensaje(false, e.getMessage() != null ? e.getMessage() : "Error procesando solicitud"));
+            enviarRespuesta(exchange, 400, jsonMensaje(false, e.getMessage() != null ? e.getMessage() : "Error en solicitud"));
         }
     }
 
@@ -159,9 +155,7 @@ public class ServidorWeb {
         byte[] bytes = Files.readAllBytes(archivo);
         exchange.getResponseHeaders().add("Content-Type", mime);
         exchange.sendResponseHeaders(200, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-        }
+        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
     }
 
     private static String leerBody(HttpExchange exchange) throws IOException {
@@ -174,21 +168,14 @@ public class ServidorWeb {
         Map<String, String> map = new HashMap<>();
         if (body == null) return map;
         String limpio = body.trim();
-        if (limpio.startsWith("{") && limpio.endsWith("}")) {
-            limpio = limpio.substring(1, limpio.length() - 1);
-        }
-        // Divide por comas fuera de comillas
+        if (limpio.startsWith("{") && limpio.endsWith("}")) limpio = limpio.substring(1, limpio.length() - 1);
         List<String> pares = new ArrayList<>();
         boolean enComillas = false;
         StringBuilder actual = new StringBuilder();
         for (char c : limpio.toCharArray()) {
             if (c == '"') enComillas = !enComillas;
-            if (c == ',' && !enComillas) {
-                pares.add(actual.toString());
-                actual.setLength(0);
-            } else {
-                actual.append(c);
-            }
+            if (c == ',' && !enComillas) { pares.add(actual.toString()); actual.setLength(0); }
+            else actual.append(c);
         }
         if (actual.length() > 0) pares.add(actual.toString());
 
@@ -197,9 +184,7 @@ public class ServidorWeb {
             if (sep > 0) {
                 String k = par.substring(0, sep).trim().replace("\"", "");
                 String v = par.substring(sep + 1).trim();
-                if (v.startsWith("\"") && v.endsWith("\"") && v.length() >= 2) {
-                    v = v.substring(1, v.length() - 1);
-                }
+                if (v.startsWith("\"") && v.endsWith("\"") && v.length() >= 2) v = v.substring(1, v.length() - 1);
                 map.put(k, v);
             }
         }
@@ -214,8 +199,6 @@ public class ServidorWeb {
     private static void enviarRespuesta(HttpExchange exchange, int codigo, String texto) throws IOException {
         byte[] bytes = texto.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(codigo, bytes.length);
-        try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-        }
+        try (OutputStream os = exchange.getResponseBody()) { os.write(bytes); }
     }
 }
